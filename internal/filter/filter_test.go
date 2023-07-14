@@ -11,15 +11,15 @@ import (
 func Test_Apply(t *testing.T) {
 	testInput := func() []Guest {
 		return []Guest{
-			{Id: 100, Name: "abcde", Type: pxAPI.GuestLXC, Node: "pve1", Tag: []string{"no-snapshot"}},
+			{Id: 100, Name: "abcde", Type: pxAPI.GuestLXC, Node: "pve1", Tags: []string{"no-snapshot"}},
 			{Id: 200, Name: "thing", Type: pxAPI.GuestLXC, Node: "test1", Pool: "dev"},
-			{Id: 300, Name: "vm45", Type: pxAPI.GuestQemu, Node: "pve1", Pool: "prod", Tag: []string{"staging"}},
-			{Id: 400, Name: "ct400", Type: pxAPI.GuestLXC, Node: "pve1", Pool: "prod", Tag: []string{"no-snapshot", "automation", "staging"}},
-			{Id: 600, Name: "copy-of-ct400", Type: pxAPI.GuestLXC, Node: "pve1", Pool: "dev", Tag: []string{"no-snapshot"}},
-			{Id: 700, Name: "700", Type: pxAPI.GuestQemu, Node: "pve2", Tag: []string{"no-snapshot"}},
+			{Id: 300, Name: "vm45", Type: pxAPI.GuestQemu, Node: "pve1", Pool: "prod", Tags: []string{"staging"}},
+			{Id: 400, Name: "ct400", Type: pxAPI.GuestLXC, Node: "pve1", Pool: "prod", Tags: []string{"no-snapshot", "automation", "staging"}},
+			{Id: 600, Name: "copy-of-ct400", Type: pxAPI.GuestLXC, Node: "pve1", Pool: "dev", Tags: []string{"no-snapshot"}},
+			{Id: 700, Name: "700", Type: pxAPI.GuestQemu, Node: "pve2", Tags: []string{"no-snapshot"}},
 			{Id: 800, Name: "test1", Type: pxAPI.GuestQemu, Node: "pve2"},
-			{Id: 900, Name: "vm73", Type: pxAPI.GuestQemu, Node: "pve2", Tag: []string{"automation"}},
-			{Id: 10000, Name: "ct45", Type: pxAPI.GuestLXC, Node: "test1", Pool: "staging", Tag: []string{"automation"}},
+			{Id: 900, Name: "vm73", Type: pxAPI.GuestQemu, Node: "pve2", Tags: []string{"automation"}},
+			{Id: 10000, Name: "ct45", Type: pxAPI.GuestLXC, Node: "test1", Pool: "staging", Tags: []string{"automation"}},
 			{Id: 1729, Name: "test1", Type: pxAPI.GuestQemu, Node: "pve1"},
 		}
 	}

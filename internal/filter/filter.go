@@ -14,7 +14,7 @@ type Guest struct {
 	Name string
 	Node string
 	Pool string
-	Tag  []string
+	Tags []string
 	Type pxAPI.GuestType
 }
 
@@ -64,7 +64,7 @@ func (filter *FilterSteps) Apply(guest Guest) bool {
 					}
 				}
 			case Tag:
-				for _, tag := range guest.Tag {
+				for _, tag := range guest.Tags {
 					if inArray(tag, step.Tag) {
 						mark = step.Add
 						break
