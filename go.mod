@@ -2,7 +2,10 @@ module go-pve-autosnap
 
 go 1.20
 
-require github.com/stretchr/testify v1.8.4
+require (
+	github.com/Telmate/proxmox-api-go v0.0.0-20230608103617-8f352f2fce3b
+	github.com/stretchr/testify v1.8.4
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
