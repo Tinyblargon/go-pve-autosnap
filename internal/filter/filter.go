@@ -2,6 +2,7 @@ package filter
 
 import (
 	pxAPI "github.com/Telmate/proxmox-api-go/proxmox"
+	"golang.org/x/exp/slices"
 )
 
 type FilterSteps struct {
@@ -46,26 +47,26 @@ func (filter *FilterSteps) Apply(guest Guest) bool {
 		if step.Add != mark {
 			switch step.Type {
 			case Id:
-				if inArray(guest.Id, step.GuestId) {
+				if slices.Contains(step.GuestId, guest.Id) {
 					mark = step.Add
 				}
 			case Name:
-				if inArray(guest.Name, step.GuestName) {
+				if slices.Contains(step.GuestName, guest.Name) {
 					mark = step.Add
 				}
 			case Node:
-				if inArray(guest.Node, step.Node) {
+				if slices.Contains(step.Node, guest.Node) {
 					mark = step.Add
 				}
 			case Pool:
 				if step.Add != mark {
-					if inArray(guest.Pool, step.Pool) {
+					if slices.Contains(step.Pool, guest.Pool) {
 						mark = step.Add
 					}
 				}
 			case Tag:
 				for _, tag := range guest.Tags {
-					if inArray(tag, step.Tag) {
+					if slices.Contains(step.Tag, tag) {
 						mark = step.Add
 						break
 					}
@@ -74,13 +75,4 @@ func (filter *FilterSteps) Apply(guest Guest) bool {
 		}
 	}
 	return mark
-}
-
-func inArray[k comparable](item k, array []k) bool {
-	for _, e := range array {
-		if item == e {
-			return true
-		}
-	}
-	return false
 }

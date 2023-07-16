@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/Telmate/proxmox-api-go v0.0.0-20230608103617-8f352f2fce3b
 	github.com/stretchr/testify v1.8.4
+	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 )
 
 require (
