@@ -2,6 +2,10 @@
 
 # compiled binary
 go-pve-autosnap
+__debug_bin*
+
+*.log
 
 # tmp file created by github actions
-coverage.out
+*coverage.out
+*coverage.html

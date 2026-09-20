@@ -1,145 +1,96 @@
 package autosnap
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"go-pve-autosnap/internal/filter"
+	"go-pve-autosnap/internal/pool"
+	"strings"
+	"sync/atomic"
 
-	pxAPI "github.com/Telmate/proxmox-api-go/proxmox"
-	"golang.org/x/exp/slices"
+	pve "github.com/Telmate/proxmox-api-go/proxmox"
 )
 
-// check if a guest is already in the list
-func completed(guest filter.Guest, guests []guestMinimal) bool {
-	for i := range guests {
-		if guest.Id == guests[i].Id && guest.Type == guests[i].Type {
-			return true
-		}
-	}
-	return false
-}
+type Function func(ctx context.Context, c pve.ClientNew, vmr *pve.VmRef) error
 
-// convert a list of proxmox guests to a list of guests for the filter
-// the difference is that the filter.Guest type is way smaller helping with memory usage
-func convertToGuestList(guests []pxAPI.GuestResource) []filter.Guest {
-	var numberOfTemplates int
-	for _, e := range guests {
-		if e.Template {
-			numberOfTemplates++
-		}
-	}
-	guestList := make([]filter.Guest, len(guests)-numberOfTemplates)
-	var offset int
-	for i, e := range guests {
-		if e.Template {
-			offset++
-			continue
-		}
-		guestList[i-offset] = filter.Guest{
-			Id:   e.Id,
-			Name: e.Name,
-			Node: e.Node,
-			Pool: e.Pool,
-			Tags: e.Tags,
-			Type: e.Type,
-		}
-	}
-	return guestList
-}
+const maxAttempts = 3
 
 // run the provided function on all guests that match the filter.
-func Execute(client *pxAPI.Client, filterObj *filter.FilterSteps, function func(client *pxAPI.Client, vmr *pxAPI.VmRef) error) error {
-	if filterObj == nil {
-		return fmt.Errorf("filter is nil")
-	}
-	trackedGuests := guests{
-		Filtered:  make(map[uint]guestNoID),
-		Completed: make([]guestMinimal, 0),
-	}
-
+func Execute(ctx context.Context, c pve.ClientNew, filterObj *filter.Filter, pool pool.Pool, f Function) error {
+	tracked := make(map[pve.GuestID]*[]error)
 	var subroutineSucceeded bool
+	var firstRun bool = true
 	for !subroutineSucceeded {
-		guestList, err := newGuestList(client)
+		guests, err := newGuestList(ctx, c.Guest)
 		if err != nil {
 			return err
 		}
-		subroutineSucceeded = executeSubroutine(guestList, &trackedGuests, client, filterObj, function)
+		if firstRun { // Initialize tracker
+			for i := range guests {
+				tracked[guests[i].GetID()] = new([]error)
+			}
+			firstRun = false
+		}
+		subroutineSucceeded = executeSubroutine(ctx, guests, tracked, maxAttempts, c, filterObj, pool, f)
+	}
+	var b strings.Builder
+	for id, e := range tracked {
+		if len(*e) == maxAttempts {
+			b.WriteByte(',')
+			b.WriteString(id.String())
+		}
+	}
+	if b.Len() > 0 {
+		return errors.New("operation failed on guest(s): " + b.String()[1:])
 	}
 	return nil
 }
 
 // subroutine of Execute to extract the testable code.
-func executeSubroutine(guestList []filter.Guest, trackedGuests *guests, client *pxAPI.Client, filterObj *filter.FilterSteps, function func(client *pxAPI.Client, vmr *pxAPI.VmRef) error) bool {
-	for _, e := range guestList {
-		// check if a snapshot has been made of the guest during this run.
-		if completed(e, trackedGuests.Completed) {
+func executeSubroutine(ctx context.Context,
+	guests []pve.RawGuestResource, tracked map[pve.GuestID]*[]error, maxAttempts int,
+	c pve.ClientNew, filterObj *filter.Filter, pool pool.Pool, f Function,
+) bool {
+	var success atomic.Bool
+	success.Store(true)
+	for i := range guests {
+		id := guests[i].GetID()
+		attempts, ok := tracked[id]
+		if !ok { // Skip guests that where not discovered in the initial run
 			continue
 		}
-		// check if guest has been filtered this run.
-		// faster than running the filter on every time.
-		if filtered(e, trackedGuests.Filtered) {
-			continue
-		}
-		if filterObj.Apply(e) {
-			vmr := pxAPI.NewVmRef(int(e.Id))
-			vmr.SetNode(e.Node)
-			vmr.SetVmType(string(e.Type))
-			err := function(client, vmr)
-			if err != nil {
-				// if err guest list is out of date, obtain a new one.
-				return false
-			}
-			trackedGuests.Completed = append(trackedGuests.Completed, guestMinimal{Id: e.Id, Type: e.Type})
-			continue
-		}
-		slices.Sort[string](e.Tags)
-		trackedGuests.Filtered[e.Id] = guestNoID{
-			Name: e.Name,
-			Node: e.Node,
-			Pool: e.Pool,
-			Tags: e.Tags,
-			Type: e.Type,
-		}
-	}
-	return true
-}
-
-// check if a guest is already in the map
-// the tags of the guests map[uint]guestNoID have to be sorted
-func filtered(guest filter.Guest, guests map[uint]guestNoID) bool {
-	if value, ok := guests[guest.Id]; ok {
-		if value.Type == guest.Type && value.Name == guest.Name && value.Node == guest.Node && value.Pool == guest.Pool {
-			slices.Sort[string](guest.Tags)
-			if slices.Equal(value.Tags, guest.Tags) {
-				return true
+		if *attempts != nil { // check if a snapshot has been made of the guest during this run.
+			if len(*attempts) == 0 || len(*attempts) == maxAttempts {
+				continue
 			}
 		}
+		guest := guests[i].Get()
+		if guest.Template {
+			continue
+		}
+		if filterObj.Apply(&guest) {
+			vmr := pve.NewVmRef(id)
+			vmr.SetNode(string(guest.Node))
+			vmr.SetVmType(guest.Type)
+			pool.Submit(guest.Node, func() {
+				if err := f(ctx, c, vmr); err != nil {
+					*attempts = append(*attempts, err)
+					success.Store(false)
+				} else {
+					*attempts = make([]error, 0)
+				}
+			})
+		}
 	}
-	return false
+	pool.Wait()
+	return success.Load()
 }
 
 // obtain a new guest list from the proxmox api
-func newGuestList(client *pxAPI.Client) ([]filter.Guest, error) {
-	rawGuestList, err := pxAPI.ListGuests(client)
+func newGuestList(ctx context.Context, c pve.GuestInterface) ([]pve.RawGuestResource, error) {
+	raw, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return convertToGuestList(rawGuestList), nil
-}
-
-type guestMinimal struct {
-	Id   uint
-	Type pxAPI.GuestType
-}
-
-type guestNoID struct {
-	Name string
-	Node string
-	Pool string
-	Tags []string
-	Type pxAPI.GuestType
-}
-
-type guests struct {
-	Filtered  map[uint]guestNoID
-	Completed []guestMinimal
+	return raw.AsArray(), nil
 }
