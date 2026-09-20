@@ -1,13 +1,17 @@
-name: Audit
+name: CI
 
 on:
   push:
-    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
   pull_request:
-    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
 
 jobs:
-  audit:
+  ci:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout

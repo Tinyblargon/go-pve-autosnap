@@ -1,13 +1,14 @@
-name: CI
+name: Badge
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
 
 jobs:
-  test:
+  badge:
     runs-on: ubuntu-latest
     name: Update coverage badge
     steps:
