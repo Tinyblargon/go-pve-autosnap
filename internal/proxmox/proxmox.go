@@ -18,7 +18,7 @@ type Snapshot struct {
 	DryRun       bool
 }
 
-func (snap Snapshot) AddAndRemove(ctx context.Context, c pve.ClientNew, vmr *pve.VmRef) (*Output, error) {
+func (snap Snapshot) AddAndRemove(ctx context.Context, c pve.ClientNew, vmr *pve.VmRef, state bool) (*Output, error) {
 	hasRequiredFeature, err := c.Guest.HasFeature(ctx, *vmr, pve.GuestFeatureSnapshot)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (snap Snapshot) AddAndRemove(ctx context.Context, c pve.ClientNew, vmr *pve
 		case pve.GuestLxc:
 			err = c.Snapshot.CreateLxcNoCheck(ctx, *vmr, o.Create, snap.Description)
 		case pve.GuestQemu:
-			err = c.Snapshot.CreateQemuNoCheck(ctx, *vmr, o.Create, snap.Description, false)
+			err = c.Snapshot.CreateQemuNoCheck(ctx, *vmr, o.Create, snap.Description, state)
 		}
 		if err != nil {
 			return nil, err

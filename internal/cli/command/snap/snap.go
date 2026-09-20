@@ -109,7 +109,7 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 	}
 
 	err := autosnap.Execute(ctx, c, filter, pool, func(ctx context.Context, c pve.ClientNew, vmr *pve.VmRef) error {
-		out, err := snap.AddAndRemove(ctx, c, vmr)
+		out, err := snap.AddAndRemove(ctx, c, vmr, state)
 		if err != nil {
 			return err
 		}
