@@ -238,11 +238,11 @@ func GetFlagOutput(cmd *cobra.Command) (*os.File, error) {
 	if !cmd.Flags().Changed(FlagOutput) {
 		return os.Stdout, nil
 	}
-	path, _ := RootCmd.Flags().GetString(FlagOutput)
+	path, _ := cmd.Flags().GetString(FlagOutput)
 	if path == "" {
 		return nil, errors.New("--" + FlagOutput + " may not be empty")
 	}
-	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 }
 
 func SetFlagOutput(cmd *cobra.Command) {

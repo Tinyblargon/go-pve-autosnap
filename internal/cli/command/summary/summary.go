@@ -93,7 +93,8 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 		b.WriteString(strconv.FormatUint(uint64(snapshotsLxc), 10))
 		b.WriteString("\n" + "qemu snapshots: ")
 		b.WriteString(strconv.FormatUint(uint64(snapshotsQemu), 10))
-		fmt.Println(b.String())
+		b.WriteByte('\n')
+		writer.Write([]byte(b.String()))
 	case format.Json, format.JsonPretty:
 		jsonData := jsonOutput{Summary: jsonSummary{
 			GuestsLxc:     guestsLxc,
