@@ -1,6 +1,6 @@
 # go-pve-autosnap
 
-![Coverage](https://img.shields.io/badge/Coverage-76.1%25-brightgreen)
+![Coverage](https://img.shields.io/badge/Coverage-0-red)
 
 With `go-pve-autosnap` you can manage your [PVE](https://www.proxmox.com/en/products/proxmox-virtual-environment/overview) snapshots.  
 Do one-time operations or schedule automatic snapshots.
