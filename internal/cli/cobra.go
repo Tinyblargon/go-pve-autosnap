@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"go-pve-autosnap/cmd/autosnap"
 	"go-pve-autosnap/internal/cli/cron"
 	"go-pve-autosnap/internal/cli/flag/datetime"
 	"go-pve-autosnap/internal/cli/flag/format"
@@ -287,4 +288,16 @@ func Setup() (shared Shared, err error) {
 	}
 	shared.Pool = pool.New(GetFlagMaxParallel(), nodes, nodeP)
 	return
+}
+
+func SetJsonError(err error) []error {
+	var errs []error
+	if eErr, ok := err.(*autosnap.ExecuteError); ok {
+		errs = make([]error, len(eErr.Errs))
+		for i := range eErr.Errs {
+			errs[i] = &eErr.Errs[i]
+		}
+		return errs
+	}
+	return []error{err}
 }

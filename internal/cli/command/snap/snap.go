@@ -116,20 +116,23 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 		f(out)
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 	if dryRun {
 		switch outputFormat {
-		case format.Json:
-			out, _ := json.Marshal(jsonData)
-			fmt.Fprint(writer, string(out))
-		case format.JsonPretty:
-			out, _ := json.Marshal(jsonData, jsontext.WithIndent(cli.JsonIndent))
-			fmt.Fprintln(writer, string(out))
+		case format.Json, format.JsonPretty:
+			if err != nil {
+				jsonData.Errors = cli.SetJsonError(err)
+			}
+			switch outputFormat {
+			case format.Json:
+				out, _ := json.Marshal(jsonData)
+				fmt.Fprint(writer, string(out))
+			case format.JsonPretty:
+				out, _ := json.Marshal(jsonData, jsontext.WithIndent(cli.JsonIndent))
+				fmt.Fprintln(writer, string(out))
+			}
 		}
 	}
-	return nil
+	return err
 }
 
 type jsonOutput struct {

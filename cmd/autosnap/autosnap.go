@@ -2,7 +2,6 @@ package autosnap
 
 import (
 	"context"
-	"errors"
 	"go-pve-autosnap/internal/filter"
 	"go-pve-autosnap/internal/pool"
 	"strings"
@@ -13,7 +12,8 @@ import (
 
 type Function func(ctx context.Context, c pve.ClientNew, vmr *pve.VmRef) error
 
-const maxAttempts = 3
+const maxAttempts = maxIndex + 1
+const maxIndex = 2
 
 // run the provided function on all guests that match the filter.
 func Execute(ctx context.Context, c pve.ClientNew, filterObj *filter.Filter, pool pool.Pool, f Function) error {
@@ -33,15 +33,17 @@ func Execute(ctx context.Context, c pve.ClientNew, filterObj *filter.Filter, poo
 		}
 		subroutineSucceeded = executeSubroutine(ctx, guests, tracked, maxAttempts, c, filterObj, pool, f)
 	}
-	var b strings.Builder
+	errs := make([]GuestError, 0)
 	for id, e := range tracked {
 		if len(*e) == maxAttempts {
-			b.WriteByte(',')
-			b.WriteString(id.String())
+			errs = append(errs, GuestError{
+				ID:  id,
+				Err: (*e)[maxIndex],
+			})
 		}
 	}
-	if b.Len() > 0 {
-		return errors.New("operation failed on guest(s): " + b.String()[1:])
+	if len(errs) > 0 {
+		return &ExecuteError{Errs: errs}
 	}
 	return nil
 }
@@ -93,4 +95,26 @@ func newGuestList(ctx context.Context, c pve.GuestInterface) ([]pve.RawGuestReso
 		return nil, err
 	}
 	return raw.AsArray(), nil
+}
+
+type ExecuteError struct {
+	Errs []GuestError
+}
+
+func (e *ExecuteError) Error() string {
+	var b strings.Builder
+	for i := range e.Errs {
+		b.WriteByte(',')
+		b.WriteString(e.Errs[i].ID.String())
+	}
+	return "operation failed on guest(s): " + b.String()[1:]
+}
+
+type GuestError struct {
+	ID  pve.GuestID
+	Err error
+}
+
+func (e *GuestError) Error() string {
+	return e.ID.String() + ": " + e.Err.Error()
 }

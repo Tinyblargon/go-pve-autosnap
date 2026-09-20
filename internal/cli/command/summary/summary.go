@@ -76,9 +76,6 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 		summary.Add(vmr.GetVmType(), snapshots)
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 
 	guestsLxc, guestsQemu, snapshotsLxc, snapshotsQemu := summary.Return()
 
@@ -102,6 +99,9 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 			SnapshotsLxc:  snapshotsLxc,
 			SnapshotsQemu: snapshotsQemu,
 		}}
+		if err != nil {
+			jsonData.Errors = cli.SetJsonError(err)
+		}
 		switch outputFormat {
 		case format.Json:
 			out, _ := json.Marshal(jsonData)
@@ -111,5 +111,5 @@ func execute(ctx context.Context, c pve.ClientNew, writer io.Writer, filter *fil
 			fmt.Fprintln(writer, string(out))
 		}
 	}
-	return nil
+	return err
 }
