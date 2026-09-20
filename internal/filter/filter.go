@@ -1,78 +1,50 @@
 package filter
 
 import (
-	pxAPI "github.com/Telmate/proxmox-api-go/proxmox"
-	"golang.org/x/exp/slices"
+	"errors"
+
+	pve "github.com/Telmate/proxmox-api-go/proxmox"
 )
 
-type FilterSteps struct {
-	All   bool
-	Steps []Step
+func New() Filters { return Filters{a: make(map[Operator]FilterConstructor)} }
+
+type Constructor struct {
+	Operator Operator
+	Func     FilterConstructor
 }
 
-type Guest struct {
-	Id   uint
-	Name string
-	Node string
-	Pool string
-	Tags []string
-	Type pxAPI.GuestType
+type FilterConstructor func(args string) (FilterStep, error)
+
+type Operator string
+
+type FilterStep func(*pve.GuestResource) bool
+
+type Filters struct {
+	a map[Operator]FilterConstructor
 }
 
-type StepType uint8
-
-const (
-	Empty StepType = iota
-	Id
-	Name
-	Node
-	Pool
-	Tag
-)
-
-type Step struct {
-	Add       bool
-	GuestId   []uint
-	GuestName []string
-	Node      []string
-	Pool      []string
-	Tag       []string
-	Type      StepType
+func (filters Filters) Register(c Constructor) error {
+	if _, registered := filters.a[c.Operator]; registered {
+		return errors.New("operator already registered")
+	}
+	filters.a[c.Operator] = c.Func
+	return nil
 }
 
-// use the filter to mark a guest for snapshot
-func (filter *FilterSteps) Apply(guest Guest) bool {
-	mark := filter.All
-	for _, step := range filter.Steps {
-		if step.Add != mark {
-			switch step.Type {
-			case Id:
-				if slices.Contains(step.GuestId, guest.Id) {
-					mark = step.Add
-				}
-			case Name:
-				if slices.Contains(step.GuestName, guest.Name) {
-					mark = step.Add
-				}
-			case Node:
-				if slices.Contains(step.Node, guest.Node) {
-					mark = step.Add
-				}
-			case Pool:
-				if step.Add != mark {
-					if slices.Contains(step.Pool, guest.Pool) {
-						mark = step.Add
-					}
-				}
-			case Tag:
-				for _, tag := range guest.Tags {
-					if slices.Contains(step.Tag, tag) {
-						mark = step.Add
-						break
-					}
-				}
-			}
+type Filter struct {
+	step      []FilterStep
+	alignment []bool
+}
+
+func (f Filter) Apply(gr *pve.GuestResource) bool {
+	var status bool = false
+	for i := range f.alignment {
+		if status == f.alignment[i] {
+			continue
+		}
+		if f.step[i](gr) {
+			status = f.alignment[i]
 		}
 	}
-	return mark
+	return status
 }

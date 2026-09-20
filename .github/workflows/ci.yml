@@ -1,17 +1,22 @@
-name: Audit
+name: CI
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
   pull_request:
-    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - '.gitignore'
 
 jobs:
-  audit:
+  ci:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
       with:
         persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
         fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
@@ -19,7 +24,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
-        go-version: '1.20'
+        go-version: '1.27'
 
     - name: Verify dependencies
       run: go mod verify
@@ -28,7 +33,7 @@ jobs:
       run: go build -v ./...
 
     - name: Run go vet
-      run: go vet ./...
+      run: make vet
 
     - name: Install staticcheck
       run: go install honnef.co/go/tools/cmd/staticcheck@latest
@@ -40,4 +45,4 @@ jobs:
       run: go install golang.org/x/lint/golint@latest
 
     - name: Run golint
-      run: golint ./...
+      run: make lint
